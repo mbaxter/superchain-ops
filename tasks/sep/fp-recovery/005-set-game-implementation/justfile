@@ -202,3 +202,64 @@ copy-anchor-state fromGameType='' toGameTypes='':
   INFO="* Re-initialize \`AnchorStateRegistry\` ${REGISTRY_PROXY} with the anchor state for game types ${GAME_TYPES_WITH_COMMAS} set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK}"
   sed -e "s|<!--NEXT TASK DESCRIPTION-->|${INFO}\n<!--NEXT TASK DESCRIPTION-->|" out/README.md > out/README.md.tmp
   mv out/README.md.tmp out/README.md
+
+reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
+  #!/usr/bin/env bash
+  set -euo pipefail
+  unset ETH_RPC_URL
+  . out/.env
+  export ETH_RPC_URL # Make available to cast since the .env file is in the out subdir.
+
+  DGF_ADDR=$(cast call "${SYSTEM_CONFIG}" "disputeGameFactory()(address)")
+
+  # Find the anchor state registry for the source game.
+  SOURCE_IMPL=$(cast call "${DGF_ADDR}" 'gameImpls(uint32)(address)' '{{respectedGameType}}')
+  REGISTRY_PROXY=$(cast call "${SOURCE_IMPL}" 'anchorStateRegistry()(address)')
+  REGISTRY_IMPL=$(cast call "${REGISTRY_PROXY}" 'implementation()(address)')
+  SUPERCHAIN_CONFIG=$(cast call "${REGISTRY_PROXY}" 'superchainConfig()(address)')
+
+  # Load the current anchor state
+  ANCHOR_ROOT='{{anchorRoot}}'
+  ANCHOR_BLOCK='{{anchorL2Seq}}'
+  RESPECTED_GAME_TYPE='{{respectedGameType}}'
+
+  STORAGE_SETTER_ADDR="0x54F8076f4027e21A010b4B3900C86211Dd2C2DEB"
+  UPGRADE_AND_CALL_SIG="upgradeAndCall(address,address,bytes)"
+  RESET_CALL=$(cast calldata "setBytes32(bytes32,bytes32)" 0x0000000000000000000000000000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000000000000000000000000000)
+  ENCODED_RESET_CALL=$(cast calldata "${UPGRADE_AND_CALL_SIG}" "${REGISTRY_PROXY}" "${STORAGE_SETTER_ADDR}" "${RESET_CALL}")
+
+  STARTING_ROOT="(${ANCHOR_ROOT}, ${ANCHOR_BLOCK})"
+
+  INIT_CALL=$(cast calldata "initialize(address, address, (bytes32,uint256), uint32)" "${SUPERCHAIN_CONFIG}" "${DGF_ADDR}" "${STARTING_ROOT}" "${RESPECTED_GAME_TYPE}")
+  ENCODED_UPGRADE_AND_INIT_CALL=$(cast calldata "${UPGRADE_AND_CALL_SIG}" "${REGISTRY_PROXY}" "${REGISTRY_IMPL}" "${INIT_CALL}")
+
+  TX_DESC="Re-initialize with starting anchor root set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK} with respectedGameType ${RESPECTED_GAME_TYPE}"
+  TXS=$(jq "(.[0].data = \"${ENCODED_RESET_CALL}\") |
+                  (.[0].to = \"${PROXY_ADMIN}\") |
+                  (.[0].contractInputsValues._proxy = \"${REGISTRY_PROXY}\") |
+                  (.[0].contractInputsValues._implementation = \"${STORAGE_SETTER_ADDR}\") |
+                  (.[0].contractInputsValues._data = \"${RESET_CALL}\") |
+                  (.[1].data = \"${ENCODED_UPGRADE_AND_INIT_CALL}\") |
+                  (.[1].to = \"${PROXY_ADMIN}\") |
+                  (.[1].metadata.description = \"${TX_DESC}\") |
+                  (.[1].contractInputsValues._proxy = \"${REGISTRY_PROXY}\") |
+                  (.[1].contractInputsValues._implementation = \"${REGISTRY_IMPL}\") |
+                  (.[1].contractInputsValues._data = \"${INIT_CALL}\")
+                  " ./templates/tx/setAnchorState.json)
+  jq --argjson tx "${TXS}" --arg desc "${TX_DESC} " '(.metadata.description += $desc) | (.transactions += $tx)' ./out/input.json > ./out/input.tmp.json
+  mv ./out/input.tmp.json ./out/input.json
+
+  # Allow state access for the AnchorStateRegistry
+
+  sed \
+    -e "s|// INSERT NEW PRE CHECKS HERE|extraStorageAccessAddresses.push(${REGISTRY_PROXY});\n        // INSERT NEW PRE CHECKS HERE|" \
+    out/NestedSignFromJson.s.sol > out/NestedSignFromJson.s.sol.tmp
+  mv out/NestedSignFromJson.s.sol.tmp out/NestedSignFromJson.s.sol
+
+  # Update the validation instructions
+  # TODO - add validation
+
+  # Update the README
+  INFO="* Re-initialize \`AnchorStateRegistry\` ${REGISTRY_PROXY} with starting anchor root set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK} with respectedGameType ${RESPECTED_GAME_TYPE}"
+  sed -e "s|<!--NEXT TASK DESCRIPTION-->|${INFO}\n<!--NEXT TASK DESCRIPTION-->|" out/README.md > out/README.md.tmp
+  mv out/README.md.tmp out/README.md
