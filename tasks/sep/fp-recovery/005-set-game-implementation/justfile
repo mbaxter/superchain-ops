@@ -7,11 +7,12 @@ default:
 clean:
   rm -rf out/*
 
-prep l1='' l2='':
+prep l1='':
   #!/usr/bin/env bash
   set -euo pipefail
   mkdir -p out
-  sed -e 's/<L2_CHAIN>/{{l2}}/g' -e 's/<L1_CHAIN>/{{l1}}/g' templates/README.md > out/README.md
+  L2="cupid-1"
+  sed -e 's/<L2_CHAIN>/${L2}/g' -e 's/<L1_CHAIN>/{{l1}}/g' templates/README.md > out/README.md
   cp templates/input.json out/input.json
   cp templates/VALIDATION.md out/VALIDATION.md
   cp templates/NestedSignFromJson.s.sol out/NestedSignFromJson.s.sol
@@ -33,16 +34,14 @@ prep l1='' l2='':
     exit 1
   fi
 
-  CONFIG_URL="https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/refs/heads/main/superchain/configs/{{l1}}/{{l2}}.toml"
-  CONFIG_TOML=$(curl -s --show-error --fail "${CONFIG_URL}")
-  SYSTEM_CONFIG=$(echo "${CONFIG_TOML}" | yq -p toml .addresses.SystemConfigProxy)
-  OWNER_SAFE=$(echo "${CONFIG_TOML}" | yq -p toml .roles.ProxyAdminOwner)
-  PROXY_ADMIN=$(echo "${CONFIG_TOML}" | yq -p toml .addresses.ProxyAdmin)
+  SYSTEM_CONFIG="0xb74b3ed2c01544bad6e40eded33be82fcbdc0d2c"
+  PROXY_ADMIN="0xa3d657b4678e71f498b471c0a241e7b878350571"
+  OWNER_SAFE=$(cast call ${PROXY_ADMIN} "owner()(address)")
 
   cat >> out/.env << EOF
   SAFE_NONCE=""
   L1_CHAIN_NAME="{{l1}}"
-  L2_CHAIN_NAME="{{l2}}"
+  L2_CHAIN_NAME="${L2}"
   SYSTEM_CONFIG="${SYSTEM_CONFIG}"
   OWNER_SAFE="${OWNER_SAFE}"
   PROXY_ADMIN="${PROXY_ADMIN}"
@@ -212,8 +211,8 @@ reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
 
   DGF_ADDR=$(cast call "${SYSTEM_CONFIG}" "disputeGameFactory()(address)")
 
-  # Find the anchor state registry for the source game.
-  SOURCE_IMPL=$(cast call "${DGF_ADDR}" 'gameImpls(uint32)(address)' '{{respectedGameType}}')
+  # Find the anchor state registry from the permissioned game.
+  SOURCE_IMPL=$(cast call "${DGF_ADDR}" 'gameImpls(uint32)(address)' '1')
   REGISTRY_PROXY=$(cast call "${SOURCE_IMPL}" 'anchorStateRegistry()(address)')
   REGISTRY_IMPL=$(cast call "${REGISTRY_PROXY}" 'implementation()(address)')
   SUPERCHAIN_CONFIG=$(cast call "${REGISTRY_PROXY}" 'superchainConfig()(address)')
