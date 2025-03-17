@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "name": "ProxyAdminOwner - Set Dispute Game Implementation",
+    "description": "Re-initialize with starting anchor root set to 0x5ee91fddc0f8d728b93db3356fc915f4f138b7720da4ed5f08c3e01453add911, 124082 with respectedGameType 0 "
+  },
+  "transactions": [
+    {
+      "metadata": {
+        "name": "Upgrade AnchorStateRegistry to StorageSetter and clear legacy initialized slot",
+        "description": "By clearing the initialized slot, we can call initialize again to set an anchor state for the new game type"
+      },
+      "to": "0xa3d657b4678e71f498b471c0a241e7b878350571",
+      "value": "0x0",
+      "data": "0x9623609d00000000000000000000000090ef2c5e9bf293ad04d53539ae5ed726af8e4d2d00000000000000000000000054f8076f4027e21a010b4b3900c86211dd2c2deb000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000444e91db080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "contractMethod": {
+        "type": "function",
+        "name": "upgradeAndCall",
+        "inputs": [
+          {
+            "name": "_proxy",
+            "type": "address"
+          },
+          {
+            "name": "_implementation",
+            "type": "address"
+          },
+          {
+            "name": "_data",
+            "type": "bytes"
+          }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      },
+      "contractInputsValues": {
+        "_proxy": "0x90eF2c5E9bf293AD04d53539ae5ed726af8e4D2d",
+        "_implementation": "0x54F8076f4027e21A010b4B3900C86211Dd2C2DEB",
+        "_data": "0x4e91db0800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "metadata": {
+        "name": "Re-initialize the AnchorStateRegistryProxy",
+        "description": "Re-initialize with starting anchor root set to 0x5ee91fddc0f8d728b93db3356fc915f4f138b7720da4ed5f08c3e01453add911, 124082 with respectedGameType 0"
+      },
+      "to": "0xa3d657b4678e71f498b471c0a241e7b878350571",
+      "value": "0x0",
+      "data": "0x9623609d00000000000000000000000090ef2c5e9bf293ad04d53539ae5ed726af8e4d2d0000000000000000000000007b465370bb7a333f99edd19599eb7fb1c2d3f8d2000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a447a222c5000000000000000000000000bd2e3ccfc65fd2f0af70b035324c9a9bb38cbd9b0000000000000000000000004a9fb373ccebe4c3f142e5adab57cc6624daf9ad5ee91fddc0f8d728b93db3356fc915f4f138b7720da4ed5f08c3e01453add911000000000000000000000000000000000000000000000000000000000001e4b2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "contractMethod": {
+        "type": "function",
+        "name": "upgradeAndCall",
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_proxy",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_implementation",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes",
+            "name": "_data",
+            "type": "bytes"
+          }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      },
+      "contractInputsValues": {
+        "_proxy": "0x90eF2c5E9bf293AD04d53539ae5ed726af8e4D2d",
+        "_implementation": "0x7b465370BB7A333f99edd19599EB7Fb1c2D3F8D2",
+        "_data": "0x47a222c5000000000000000000000000bd2e3ccfc65fd2f0af70b035324c9a9bb38cbd9b0000000000000000000000004a9fb373ccebe4c3f142e5adab57cc6624daf9ad5ee91fddc0f8d728b93db3356fc915f4f138b7720da4ed5f08c3e01453add911000000000000000000000000000000000000000000000000000000000001e4b20000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
