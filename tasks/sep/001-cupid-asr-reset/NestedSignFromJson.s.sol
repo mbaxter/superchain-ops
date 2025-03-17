@@ -8,7 +8,7 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {stdToml} from "forge-std/StdToml.sol";
 import {Vm, VmSafe} from "forge-std/Vm.sol";
 import {GnosisSafe} from "safe-contracts/GnosisSafe.sol";
-import {LibString} from "@solady/utils/LibString.sol";
+import {LibString} from "solady/utils/LibString.sol";
 import "@eth-optimism-bedrock/src/dispute/lib/Types.sol";
 import {DisputeGameFactory} from "@eth-optimism-bedrock/src/dispute/DisputeGameFactory.sol";
 import {FaultDisputeGame} from "@eth-optimism-bedrock/src/dispute/FaultDisputeGame.sol";

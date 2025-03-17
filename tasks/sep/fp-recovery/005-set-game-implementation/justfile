@@ -202,7 +202,7 @@ copy-anchor-state fromGameType='' toGameTypes='':
   sed -e "s|<!--NEXT TASK DESCRIPTION-->|${INFO}\n<!--NEXT TASK DESCRIPTION-->|" out/README.md > out/README.md.tmp
   mv out/README.md.tmp out/README.md
 
-reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
+reset-anchor-state anchorRoot='' anchorL2Seq='':
   #!/usr/bin/env bash
   set -euo pipefail
   unset ETH_RPC_URL
@@ -210,6 +210,7 @@ reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
   export ETH_RPC_URL # Make available to cast since the .env file is in the out subdir.
 
   DGF_ADDR=$(cast call "${SYSTEM_CONFIG}" "disputeGameFactory()(address)")
+  PORTAL_ADDR=$(cast call "${SYSTEM_CONFIG}" "optimismPortal()(address)")
 
   # Find the anchor state registry from the permissioned game.
   SOURCE_IMPL=$(cast call "${DGF_ADDR}" 'gameImpls(uint32)(address)' '1')
@@ -220,7 +221,6 @@ reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
   # Load the current anchor state
   ANCHOR_ROOT='{{anchorRoot}}'
   ANCHOR_BLOCK='{{anchorL2Seq}}'
-  RESPECTED_GAME_TYPE='{{respectedGameType}}'
 
   STORAGE_SETTER_ADDR="0x54F8076f4027e21A010b4B3900C86211Dd2C2DEB"
   UPGRADE_AND_CALL_SIG="upgradeAndCall(address,address,bytes)"
@@ -229,10 +229,10 @@ reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
 
   STARTING_ROOT="(${ANCHOR_ROOT}, ${ANCHOR_BLOCK})"
 
-  INIT_CALL=$(cast calldata "initialize(address, address, (bytes32,uint256), uint32)" "${SUPERCHAIN_CONFIG}" "${DGF_ADDR}" "${STARTING_ROOT}" "${RESPECTED_GAME_TYPE}")
+  INIT_CALL=$(cast calldata "initialize(address, address, address, (bytes32,uint256))" "${SUPERCHAIN_CONFIG}" "${DGF_ADDR}" "$PORTAL_ADDR" "${STARTING_ROOT}")
   ENCODED_UPGRADE_AND_INIT_CALL=$(cast calldata "${UPGRADE_AND_CALL_SIG}" "${REGISTRY_PROXY}" "${REGISTRY_IMPL}" "${INIT_CALL}")
 
-  TX_DESC="Re-initialize with starting anchor root set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK} with respectedGameType ${RESPECTED_GAME_TYPE}"
+  TX_DESC="Re-initialize with starting anchor root set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK}"
   TXS=$(jq "(.[0].data = \"${ENCODED_RESET_CALL}\") |
                   (.[0].to = \"${PROXY_ADMIN}\") |
                   (.[0].contractInputsValues._proxy = \"${REGISTRY_PROXY}\") |
@@ -259,6 +259,6 @@ reset-anchor-state anchorRoot='' anchorL2Seq='' respectedGameType='':
   # TODO - add validation
 
   # Update the README
-  INFO="* Re-initialize \`AnchorStateRegistry\` ${REGISTRY_PROXY} with starting anchor root set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK} with respectedGameType ${RESPECTED_GAME_TYPE}"
+  INFO="* Re-initialize \`AnchorStateRegistry\` ${REGISTRY_PROXY} with starting anchor root set to ${ANCHOR_ROOT}, ${ANCHOR_BLOCK}"
   sed -e "s|<!--NEXT TASK DESCRIPTION-->|${INFO}\n<!--NEXT TASK DESCRIPTION-->|" out/README.md > out/README.md.tmp
   mv out/README.md.tmp out/README.md
