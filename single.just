@@ -129,13 +129,15 @@ sign hdPath='0':
   fi
   echo "Using script ${script}"
   echo "getting signer address..."
-  signer=$(cast wallet address --ledger --mnemonic-derivation-path "m/44'/60'/{{hdPath}}'/0/0")
+  #signer=$(cast wallet address --ledger --mnemonic-derivation-path "m/44'/60'/{{hdPath}}'/0/0")
+  signer=0x107781Bc6FA8f66B843f4216fd6D5862D3aa4fcd
   echo "Signing with: ${signer}"
   echo ""
 
   forge build
   # Using the eip712sign within the repo folder since eip712sign was installed there in ./justfile.
-  $(git rev-parse --show-toplevel)/bin/eip712sign --ledger --hd-paths "m/44'/60'/{{hdPath}}'/0/0" -- \
+  #$(git rev-parse --show-toplevel)/bin/eip712sign --ledger --hd-paths "m/44'/60'/{{hdPath}}'/0/0" -- \
+  $(git rev-parse --show-toplevel)/bin/eip712sign --private-key $DEVNET_PRIVATE_KEY -- \
   forge script ${script} \
     --rpc-url ${rpcUrl} \
     --sig "signJson(string)" \
