@@ -10,6 +10,7 @@ import {Vm, VmSafe} from "forge-std/Vm.sol";
 import {GnosisSafe} from "safe-contracts/GnosisSafe.sol";
 import {LibString} from "solady/utils/LibString.sol";
 import "@eth-optimism-bedrock/src/dispute/lib/Types.sol";
+import {AnchorStateRegistry} from "@eth-optimism-bedrock/src/dispute/AnchorStateRegistry.sol";
 import {DisputeGameFactory} from "@eth-optimism-bedrock/src/dispute/DisputeGameFactory.sol";
 import {FaultDisputeGame} from "@eth-optimism-bedrock/src/dispute/FaultDisputeGame.sol";
 import {PermissionedDisputeGame} from "@eth-optimism-bedrock/src/dispute/PermissionedDisputeGame.sol";
@@ -35,13 +36,49 @@ contract SignFromJson is OriginalSignFromJson {
 
     // DisputeGameFactoryProxy address.
     DisputeGameFactory dgfProxy;
+    AnchorStateRegistry asr = AnchorStateRegistry(0x90eF2c5E9bf293AD04d53539ae5ed726af8e4D2d);
+    // Store initial asr settings
+    address initAsrSuperchainConfig;
+    address initAsrPortal;
+    // Store expected post state variables
+    bytes32 expectedOutputRoot = 0x5ee91fddc0f8d728b93db3356fc915f4f138b7720da4ed5f08c3e01453add911;
+    uint256 expectedL2Seq = 124082;
 
     address[] extraStorageAccessAddresses;
 
     function setUp() public {
         dgfProxy = DisputeGameFactory(systemConfig.disputeGameFactory());
-        extraStorageAccessAddresses.push(0x90eF2c5E9bf293AD04d53539ae5ed726af8e4D2d);
+        extraStorageAccessAddresses.push(address(asr));
         // INSERT NEW PRE CHECKS HERE
+        precheckASR();
+    }
+    
+    function precheckASR() internal {
+        FaultDisputeGame currentGame = FaultDisputeGame(address(dgfProxy.gameImpls(GameType(GameTypes.PERMISSIONED_CANNON))));
+        address currentAsr = address(currentGame.anchorStateRegistry());
+        require(currentAsr == address(asr), "pre-asr-10");
+
+        initAsrSuperchainConfig = address(asr.superchainConfig());
+        initAsrPortal = address(asr.portal());
+
+        require(address(asr.disputeGameFactory()) == address(dgfProxy), "pre-asr-20");
+        
+        // Check starting root is 0xdead
+        (Hash root, uint256 l2seq) = asr.getAnchorRoot();
+        require(root.raw() == 0xdead000000000000000000000000000000000000000000000000000000000000, "pre-asr-30");
+        require(l2seq == 0x0, "pre-asr-40");
+    }
+    
+    function postcheckASR() internal view {
+        // Check contract references are unchanged
+        require(address(asr.superchainConfig()) == initAsrSuperchainConfig, "post-asr-10");
+        require(address(asr.portal()) == initAsrPortal, "post-asr-20");
+        require(address(asr.disputeGameFactory()) == address(dgfProxy), "post-asr-30");
+        
+        // Check starting root is updated as expected
+        (Hash root, uint256 l2seq) = asr.getAnchorRoot();
+        require(root.raw() == expectedOutputRoot, "post-asr-40");
+        require(l2seq == expectedL2Seq, "post-asr-50");
     }
 
     function getCodeExceptions() internal view override returns (address[] memory) {
@@ -78,53 +115,6 @@ contract SignFromJson is OriginalSignFromJson {
         return shouldHaveCodeExceptions;
     }
 
-    // _precheckDisputeGameImplementation checks that the new game being set has the same configuration as the existing
-    // implementation with the exception of the absolutePrestate. This is the most common scenario where the game
-    // implementation is upgraded to provide an updated fault proof program that supports an upcoming hard fork.
-    function _precheckDisputeGameImplementation(GameType _targetGameType, address _newImpl) internal view {
-        console.log("pre-check new game implementations", _targetGameType.raw());
-
-        FaultDisputeGame currentImpl = FaultDisputeGame(address(dgfProxy.gameImpls(GameType(_targetGameType))));
-        // No checks are performed if there is no prior implementation.
-        // When deploying the first implementation, it is recommended to implement custom checks.
-        if (address(currentImpl) == address(0)) {
-            return;
-        }
-        FaultDisputeGame faultDisputeGame = FaultDisputeGame(_newImpl);
-        require(address(currentImpl.vm()) == address(faultDisputeGame.vm()), "10");
-        require(address(currentImpl.weth()) == address(faultDisputeGame.weth()), "20");
-        require(address(currentImpl.anchorStateRegistry()) == address(faultDisputeGame.anchorStateRegistry()), "30");
-        require(currentImpl.l2ChainId() == faultDisputeGame.l2ChainId(), "40");
-        require(currentImpl.splitDepth() == faultDisputeGame.splitDepth(), "50");
-        require(currentImpl.maxGameDepth() == faultDisputeGame.maxGameDepth(), "60");
-        require(uint64(Duration.unwrap(currentImpl.maxClockDuration())) == uint64(Duration.unwrap(faultDisputeGame.maxClockDuration())), "70");
-        require(uint64(Duration.unwrap(currentImpl.clockExtension())) == uint64(Duration.unwrap(faultDisputeGame.clockExtension())), "80");
-
-        if (_targetGameType.raw() == GameTypes.PERMISSIONED_CANNON.raw()) {
-            PermissionedDisputeGame currentPDG = PermissionedDisputeGame(address(currentImpl));
-            PermissionedDisputeGame permissionedDisputeGame = PermissionedDisputeGame(address(faultDisputeGame));
-            require(address(currentPDG.proposer()) == address(permissionedDisputeGame.proposer()), "90");
-            require(address(currentPDG.challenger()) == address(permissionedDisputeGame.challenger()), "100");
-        }
-    }
-
-    function _precheckAnchorStateCopy(GameType _fromType, GameType _toType) internal view {
-        console.log("pre-check anchor state copy", _toType.raw());
-
-        FaultDisputeGame fromImpl = FaultDisputeGame(address(dgfProxy.gameImpls(GameType(_fromType))));
-        // Must have existing game type implementation for the source
-        require(address(fromImpl) != address(0), "200");
-        address fromRegistry = address(fromImpl.anchorStateRegistry());
-        require(fromRegistry != address(0), "210");
-
-        FaultDisputeGame toImpl = FaultDisputeGame(address(dgfProxy.gameImpls(GameType(_toType))));
-        if (address(toImpl) != address(0)) {
-            // If there is an existing implementation, it must use the same anchor state registry.
-            address toRegistry = address(toImpl.anchorStateRegistry());
-            require(toRegistry == fromRegistry, "210");
-        }
-    }
-
     function getAllowedStorageAccess() internal view override returns (address[] memory allowed) {
         allowed = new address[](5 + extraStorageAccessAddresses.length);
         allowed[0] = address(dgfProxy);
@@ -146,36 +136,9 @@ contract SignFromJson is OriginalSignFromJson {
 
         checkStateDiff(accesses);
         // INSERT NEW POST CHECKS HERE
+        postcheckASR();
 
         console.log("All assertions passed!");
     }
 
-    function _checkDisputeGameImplementation(GameType _targetGameType, address _newImpl) internal view {
-        console.log("check dispute game implementations", _targetGameType.raw());
-
-        require(_newImpl == address(dgfProxy.gameImpls(_targetGameType)), "check-100");
-    }
-
-    function _postcheckAnchorStateCopy(GameType _gameType, bytes32 _root, uint256 _l2BlockNumber) internal view {
-        console.log("check anchor state value", _gameType.raw());
-
-        FaultDisputeGame impl = FaultDisputeGame(address(dgfProxy.gameImpls(GameType(_gameType))));
-        (Hash root, uint256 rootBlockNumber) = FaultDisputeGame(address(impl)).anchorStateRegistry().anchors(_gameType);
-
-        require(root.raw() == _root, "check-200");
-        require(rootBlockNumber == _l2BlockNumber, "check-210");
-    }
-
-    // @notice Checks the anchor state for the source game type still exists after re-initialization.
-    // The actual anchor state may have been updated since the task was defined so just assert it exists, not that
-    // it has a specific value.
-    function _postcheckHasAnchorState(GameType _gameType) internal view {
-        console.log("check anchor state exists", _gameType.raw());
-
-        FaultDisputeGame impl = FaultDisputeGame(address(dgfProxy.gameImpls(GameType(_gameType))));
-        (Hash root, uint256 rootBlockNumber) = FaultDisputeGame(address(impl)).anchorStateRegistry().anchors(_gameType);
-
-        require(root.raw() != bytes32(0), "check-300");
-        require(rootBlockNumber != 0, "check-310");
-    }
 }
