@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import {NestedSignFromJson as OriginalNestedSignFromJson} from "script/NestedSignFromJson.s.sol";
+import {SignFromJson as OriginalSignFromJson} from "script/SignFromJson.s.sol";
 import {Simulation} from "@base-contracts/script/universal/Simulation.sol";
 import {console2 as console} from "forge-std/console2.sol";
 import {stdJson} from "forge-std/StdJson.sol";
@@ -15,7 +15,7 @@ import {FaultDisputeGame} from "@eth-optimism-bedrock/src/dispute/FaultDisputeGa
 import {PermissionedDisputeGame} from "@eth-optimism-bedrock/src/dispute/PermissionedDisputeGame.sol";
 import {SystemConfig} from "@eth-optimism-bedrock/src/L1/SystemConfig.sol";
 
-contract NestedSignFromJson is OriginalNestedSignFromJson {
+contract SignFromJson is OriginalSignFromJson {
     using LibString for string;
 
     // Chains for this task.
